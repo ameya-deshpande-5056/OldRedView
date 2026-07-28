@@ -1,4 +1,4 @@
-# Old Reddit Viewer
+# OldRedView
 
 An Android Flutter app that opens Reddit links in `old.reddit.com` inside an in-app WebView.
 
