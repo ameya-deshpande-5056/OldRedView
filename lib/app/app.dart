@@ -47,6 +47,9 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
   /// Updated when a new deep link arrives while the app is running.
   String? _currentUrl;
 
+  /// Whether the initial platform URL lookup has completed.
+  bool _initialUrlResolved = false;
+
   /// A unique key that forces the WebView to rebuild when a new link arrives.
   /// This ensures the WebView navigates to the new URL even if it's the same
   /// widget instance.
@@ -129,6 +132,7 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _currentUrl = url;
+        _initialUrlResolved = true;
         // Force the WebView to rebuild with the new URL if one was found.
         if (url != null) {
           _linkKey++;
@@ -164,6 +168,14 @@ class _HomeState extends State<_Home> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final brightness = MediaQuery.of(context).platformBrightness;
     final isDarkMode = brightness == Brightness.dark;
+
+    if (!_initialUrlResolved) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return RedditWebView(
       key: ValueKey(_linkKey),

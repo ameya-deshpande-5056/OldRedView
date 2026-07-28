@@ -1,7 +1,9 @@
 package com.example.open_in_old_reddit
 
 import android.content.Intent
+import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -27,6 +29,11 @@ class MainActivity : FlutterActivity() {
     private var latestIntentUrl: String? = null
     private var intentChannel: MethodChannel? = null
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        latestIntentUrl = extractUrlFromIntent(this, intent)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -41,7 +48,7 @@ class MainActivity : FlutterActivity() {
         intentChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getInitialIntentUrl" -> {
-                    result.success(latestIntentUrl ?: extractUrlFromIntent(intent))
+                    result.success(latestIntentUrl ?: extractUrlFromIntent(this, intent))
                 }
                 "getLatestIntentUrl" -> {
                     result.success(latestIntentUrl)
@@ -58,7 +65,7 @@ class MainActivity : FlutterActivity() {
     /// The extracted URL is stored in [latestIntentUrl] for the Dart layer
     /// to retrieve via the method channel.
     private fun processIntent(intent: Intent?) {
-        val url = extractUrlFromIntent(intent)
+        val url = extractUrlFromIntent(this, intent)
         if (url != null) {
             latestIntentUrl = url
             android.util.Log.d(
@@ -111,7 +118,7 @@ class MainActivity : FlutterActivity() {
         /// - Standard deep links (ACTION_VIEW with a Reddit URL)
         /// - Shared URLs from other apps (ACTION_SEND with EXTRA_TEXT)
         /// - App links via Android's verified links system
-        fun extractUrlFromIntent(intent: Intent?): String? {
+        fun extractUrlFromIntent(context: Context, intent: Intent?): String? {
             if (intent == null) return null
 
             // Strategy 1: Check the intent data URI directly.
@@ -120,8 +127,16 @@ class MainActivity : FlutterActivity() {
 
             // Shared text can include a title, description, or a search-engine
             // redirect URL in addition to the Reddit URL itself.
-            extractRedditUrl(intent.getStringExtra(Intent.EXTRA_TEXT))?.let { return it }
-            extractRedditUrl(intent.getStringExtra(Intent.EXTRA_HTML_TEXT))?.let { return it }
+            extractRedditUrl(intent.getSharedText(Intent.EXTRA_TEXT))?.let { return it }
+            extractRedditUrl(intent.getSharedText(Intent.EXTRA_HTML_TEXT))?.let { return it }
+            extractRedditUrl(intent.getSharedText(Intent.EXTRA_SUBJECT))?.let { return it }
+            extractRedditUrl(intent.getSharedText(Intent.EXTRA_TITLE))?.let { return it }
+
+            // Chrome and OEM share sheets can use app-specific or non-string
+            // extras, so scan all extras defensively after the standard keys.
+            intent.extras?.keySet()?.forEach { key ->
+                extractRedditUrl(intent.extras?.get(key)?.toString())?.let { return it }
+            }
 
             // Some share sheets place the URL only in ClipData.
             intent.clipData?.let { clipData ->
@@ -129,6 +144,7 @@ class MainActivity : FlutterActivity() {
                     val item = clipData.getItemAt(index)
                     extractRedditUrl(item.text?.toString())?.let { return it }
                     extractRedditUrl(item.uri?.toString())?.let { return it }
+                    extractRedditUrl(item.coerceToText(context)?.toString())?.let { return it }
                 }
             }
 
@@ -145,10 +161,11 @@ class MainActivity : FlutterActivity() {
             val candidates = buildList {
                 add(value.trim())
                 URL_PATTERN.findAll(value).forEach { add(it.value) }
+                REDDIT_URL_PATTERN.findAll(value).forEach { add(it.value) }
             }
 
             for (candidate in candidates) {
-                val cleaned = candidate.trim().trimEnd('.', ',', ';', ':', ')', ']', '}')
+                val cleaned = normalizeUrlCandidate(candidate)
                 val uri = runCatching { Uri.parse(cleaned) }.getOrNull() ?: continue
                 val unwrapped = unwrapRedirectUrl(uri)
                 if (unwrapped != null) return unwrapped
@@ -161,8 +178,9 @@ class MainActivity : FlutterActivity() {
         /// Checks whether [url] is a direct URL for a supported Reddit host.
         private fun isPossibleRedditUrl(url: String): Boolean {
             val uri = runCatching { Uri.parse(url.trim()) }.getOrNull() ?: return false
+            val host = uri.host?.lowercase() ?: return false
             return (uri.scheme == "http" || uri.scheme == "https") &&
-                uri.host.lowercase() in REDDIT_HOSTS
+                host in REDDIT_HOSTS
         }
 
         /// Attempts to extract a Reddit URL from common search-engine redirect wrappers.
@@ -171,13 +189,15 @@ class MainActivity : FlutterActivity() {
         /// checks the most common query parameters and returns the first Reddit URL it
         /// can find, if any.
         private fun unwrapRedirectUrl(uri: Uri): String? {
+            if (!uri.isHierarchical) return null
+
             val candidates = listOf(
-                uri.getQueryParameter("q"),
-                uri.getQueryParameter("url"),
-                uri.getQueryParameter("u"),
-                uri.getQueryParameter("target"),
-                uri.getQueryParameter("dest"),
-                uri.getQueryParameter("r"),
+                safeQueryParameter(uri, "q"),
+                safeQueryParameter(uri, "url"),
+                safeQueryParameter(uri, "u"),
+                safeQueryParameter(uri, "target"),
+                safeQueryParameter(uri, "dest"),
+                safeQueryParameter(uri, "r"),
                 uri.fragment?.takeIf { it.contains("reddit.com", ignoreCase = true) || it.contains("redd.it", ignoreCase = true) }
             )
 
@@ -192,6 +212,23 @@ class MainActivity : FlutterActivity() {
             return null
         }
 
+        private fun safeQueryParameter(uri: Uri, name: String): String? {
+            return runCatching { uri.getQueryParameter(name) }.getOrNull()
+        }
+
+        private fun normalizeUrlCandidate(candidate: String): String {
+            val cleaned = candidate.trim().trimEnd('.', ',', ';', ':', ')', ']', '}')
+            return if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+                cleaned
+            } else {
+                "https://$cleaned"
+            }
+        }
+
+        private fun Intent.getSharedText(name: String): String? {
+            return getCharSequenceExtra(name)?.toString() ?: getStringExtra(name)
+        }
+
         private val REDDIT_HOSTS = setOf(
             "reddit.com",
             "www.reddit.com",
@@ -201,5 +238,9 @@ class MainActivity : FlutterActivity() {
         )
 
         private val URL_PATTERN = Regex("https?://[^\\s<>\\\"']+")
+        private val REDDIT_URL_PATTERN = Regex(
+            "(?:https?://)?(?:www\\.|old\\.|m\\.)?(?:reddit\\.com|redd\\.it)(?:/[^\\s<>\\\"']*)?",
+            RegexOption.IGNORE_CASE
+        )
     }
 }
