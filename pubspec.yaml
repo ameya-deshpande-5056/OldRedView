@@ -1,0 +1,28 @@
+name: open_in_old_reddit
+description: "A lightweight Android app that opens Reddit links in old.reddit.com using an in-app WebView."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # WebView for rendering old.reddit.com
+  webview_flutter: ^4.10.0
+
+  # Deep link handling for intercepting Reddit URLs
+  app_links: ^6.3.3
+
+  # Material 3 icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

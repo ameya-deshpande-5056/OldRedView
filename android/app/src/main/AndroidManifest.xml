@@ -1,0 +1,125 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="Old Reddit Viewer"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+
+            <!-- Standard launcher intent -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!--
+                Deep link handlers for Reddit URLs.
+                IMPORTANT: android:autoVerify is NOT set here because we don't own
+                reddit.com and cannot host assetlinks.json on their domain. Setting
+                autoVerify on domains we don't control would cause Android to fail
+                verification and potentially HIDE the app from the "Open with" chooser.
+                Without autoVerify, the app still appears in the chooser for matching URLs.
+            -->
+
+            <!-- Combined HTTPS intent filter for all Reddit hosts -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="reddit.com" />
+                <data android:scheme="https" android:host="www.reddit.com" />
+                <data android:scheme="https" android:host="old.reddit.com" />
+                <data android:scheme="https" android:host="m.reddit.com" />
+                <data android:scheme="https" android:host="redd.it" />
+            </intent-filter>
+
+            <!--
+                Search engine redirect handlers.
+
+                Google and Bing frequently wrap outbound links in their own
+                redirect URLs (for example https://www.google.com/url?... or
+                https://www.bing.com/ck/a?...). These filters let Android route
+                those wrapper URLs into the app, where MainActivity can extract
+                the real Reddit destination from the query parameters.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.google.com" android:pathPrefix="/url" />
+                <data android:scheme="https" android:host="google.com" android:pathPrefix="/url" />
+                <data android:scheme="https" android:host="www.bing.com" android:pathPrefix="/ck/a" />
+                <data android:scheme="https" android:host="bing.com" android:pathPrefix="/ck/a" />
+                <data android:scheme="https" android:host="www.bing.com" android:pathPrefix="/aclick" />
+                <data android:scheme="https" android:host="bing.com" android:pathPrefix="/aclick" />
+            </intent-filter>
+
+            <!-- Combined HTTP intent filter for all Reddit hosts -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="reddit.com" />
+                <data android:scheme="http" android:host="www.reddit.com" />
+                <data android:scheme="http" android:host="old.reddit.com" />
+                <data android:scheme="http" android:host="m.reddit.com" />
+                <data android:scheme="http" android:host="redd.it" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="www.google.com" android:pathPrefix="/url" />
+                <data android:scheme="http" android:host="google.com" android:pathPrefix="/url" />
+                <data android:scheme="http" android:host="www.bing.com" android:pathPrefix="/ck/a" />
+                <data android:scheme="http" android:host="bing.com" android:pathPrefix="/ck/a" />
+                <data android:scheme="http" android:host="www.bing.com" android:pathPrefix="/aclick" />
+                <data android:scheme="http" android:host="bing.com" android:pathPrefix="/aclick" />
+            </intent-filter>
+
+            <!--
+                Share intent filter: allows users to "Share" Reddit links
+                from Chrome, Google Search, or any other app directly to
+                Old Reddit Viewer.
+
+                Google Search uses Chrome Custom Tabs internally, which open
+                links inside the Google app's own web container rather than
+                sending an ACTION_VIEW intent. To open Reddit links from
+                Google Search in this app:
+
+                1. Tap the link in Google Search → opens in Chrome
+                2. In Chrome, tap the menu (⋮) → "Share"
+                3. Select "Old Reddit Viewer" from the share sheet
+
+                The app's Kotlin code (MainActivity.extractUrlFromIntent)
+                will extract the Reddit URL from the shared text.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
