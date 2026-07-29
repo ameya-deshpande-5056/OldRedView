@@ -57,6 +57,9 @@ class _RedditWebViewState extends State<RedditWebView> {
   /// Whether the current page has finished loading.
   bool _pageLoaded = false;
 
+  /// Monotonically increasing identifier for the current navigation.
+  int _pageLoadId = 0;
+
   @override
   void initState() {
     super.initState();
@@ -88,21 +91,44 @@ class _RedditWebViewState extends State<RedditWebView> {
                 _hasError = false;
               });
             }
+            _showWebViewOverlay();
+          },
+          // Reset stylesheet state before each navigation begins.
+          onPageStarted: (String url) {
+            if (mounted) {
+              setState(() {
+                _pageLoadId++;
+                _pageLoaded = false;
+                _darkModeInjected = false;
+                _mobileLayoutInjected = false;
+              });
+            }
+            _showWebViewOverlay();
           },
           // Called when a page finishes loading.
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
+            final pageLoadId = _pageLoadId;
             debugPrint('[RedditWebView] Page loaded: $url');
-            if (mounted) {
+            if (mounted && pageLoadId == _pageLoadId) {
               setState(() {
                 _loadingProgress = 1.0;
                 _hasError = false;
                 _pageLoaded = true;
               });
             }
-            // Inject phone-only layout fixes after every page load.
-            _injectMobileLayoutCss();
-            // Inject dark mode CSS after every page load.
-            _injectDarkModeCss();
+            if (pageLoadId != _pageLoadId) {
+              return;
+            }
+            try {
+              await Future.wait([
+                _injectMobileLayoutCss(),
+                _injectDarkModeCss(),
+              ]);
+            } finally {
+              if (mounted && pageLoadId == _pageLoadId) {
+                await _hideWebViewOverlay();
+              }
+            }
           },
           // Handle page load failures gracefully.
           onWebResourceError: (WebResourceError error) {
@@ -247,6 +273,55 @@ class _RedditWebViewState extends State<RedditWebView> {
     debugPrint('[RedditWebView] Mobile layout CSS injected');
   }
 
+  /// Displays a temporary theme-colored cover inside the WebView document.
+  Future<void> _showWebViewOverlay() async {
+    if (!widget.isDarkMode && !_isPhoneLayout) {
+      return;
+    }
+    final color = Theme.of(context).scaffoldBackgroundColor;
+    final backgroundColor =
+        'rgba(${(color.r * 255).round()}, ${(color.g * 255).round()}, '
+        '${(color.b * 255).round()}, 0.92)';
+    final indicatorColor = Theme.of(context).colorScheme.onSurface;
+    final spinnerColor =
+        'rgb(${(indicatorColor.r * 255).round()}, '
+        '${(indicatorColor.g * 255).round()}, '
+        '${(indicatorColor.b * 255).round()})';
+    await _controller.runJavaScript('''
+(function() {
+  var overlay = document.getElementById('old-reddit-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'old-reddit-loading-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;background:$backgroundColor;';
+    var spinner = document.createElement('div');
+    spinner.style.cssText = 'position:absolute;top:50%;left:50%;width:28px;height:28px;margin:-14px;border:3px solid rgba(${(indicatorColor.r * 255).round()}, ${(indicatorColor.g * 255).round()}, ${(indicatorColor.b * 255).round()}, 0.25);border-top-color:$spinnerColor;border-radius:50%;animation:old-reddit-loading-spin 0.8s linear infinite;';
+    overlay.appendChild(spinner);
+    document.documentElement.appendChild(overlay);
+    var animation = document.getElementById('old-reddit-loading-animation');
+    if (!animation) {
+      animation = document.createElement('style');
+      animation.id = 'old-reddit-loading-animation';
+      animation.textContent = '@keyframes old-reddit-loading-spin { to { transform: rotate(360deg); } }';
+      (document.head || document.documentElement).appendChild(animation);
+    }
+  }
+})();
+''');
+  }
+
+  /// Removes the temporary cover after the active stylesheets are applied.
+  Future<void> _hideWebViewOverlay() {
+    return _controller.runJavaScript('''
+(function() {
+  var overlay = document.getElementById('old-reddit-loading-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+})();
+''');
+  }
+
   /// Handles the Android system back button.
   ///
   /// If the WebView has navigation history, it goes back one page.
@@ -377,7 +452,18 @@ class _RedditWebViewState extends State<RedditWebView> {
     super.didUpdateWidget(oldWidget);
     // If dark mode changed while the WebView is already loaded, inject/remove CSS.
     if (oldWidget.isDarkMode != widget.isDarkMode) {
-      _injectDarkModeCss();
+      if (!_pageLoaded) {
+        return;
+      }
+      if (widget.isDarkMode && _pageLoaded) {
+        _showWebViewOverlay();
+      }
+      final pageLoadId = _pageLoadId;
+      _injectDarkModeCss().whenComplete(() {
+        if (mounted && pageLoadId == _pageLoadId) {
+          _hideWebViewOverlay();
+        }
+      });
     }
   }
 
@@ -387,7 +473,18 @@ class _RedditWebViewState extends State<RedditWebView> {
     final isPhoneLayout = MediaQuery.sizeOf(context).shortestSide < 600;
     if (_isPhoneLayout != isPhoneLayout) {
       _isPhoneLayout = isPhoneLayout;
-      _injectMobileLayoutCss();
+      if (!_pageLoaded) {
+        return;
+      }
+      if (isPhoneLayout) {
+        _showWebViewOverlay();
+      }
+      final pageLoadId = _pageLoadId;
+      _injectMobileLayoutCss().whenComplete(() {
+        if (mounted && pageLoadId == _pageLoadId) {
+          _hideWebViewOverlay();
+        }
+      });
     }
   }
 }

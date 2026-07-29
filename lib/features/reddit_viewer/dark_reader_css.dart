@@ -170,6 +170,12 @@ a img:hover, a video:hover {
   filter: brightness(1.0) !important;
 }
 
+/* Invert Reddit's light interface artwork without altering submitted media. */
+#header-img,
+img[src*="redditstatic.com"] {
+  filter: brightness(0.9) invert(1) hue-rotate(180deg) !important;
+}
+
 /* ---- Thumbnails ---- */
 .thumbnail img, .thumbnail {
   filter: brightness(0.85) !important;
