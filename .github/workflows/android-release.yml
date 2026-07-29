@@ -107,13 +107,13 @@ jobs:
       - name: Name release asset
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.name }}
-        run: mv build/app/outputs/flutter-apk/app-release.apk "old-reddit-viewer-${RELEASE_VERSION}.apk"
+        run: mv build/app/outputs/flutter-apk/app-release.apk "oldredview-${RELEASE_VERSION}.apk"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: old-reddit-viewer-${{ steps.version.outputs.name }}
-          path: old-reddit-viewer-${{ steps.version.outputs.name }}.apk
+          name: oldredview-${{ steps.version.outputs.name }}
+          path: oldredview-${{ steps.version.outputs.name }}.apk
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -121,5 +121,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: old-reddit-viewer-${{ steps.version.outputs.name }}.apk
+          files: oldredview-${{ steps.version.outputs.name }}.apk
           fail_on_unmatched_files: true

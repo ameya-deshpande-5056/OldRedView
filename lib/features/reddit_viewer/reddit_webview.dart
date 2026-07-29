@@ -3,6 +3,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../services/reddit_redirect_service.dart';
 import 'dark_reader_css.dart';
+import 'mobile_layout_css.dart';
 import 'url_handler.dart';
 
 /// The main WebView widget that displays old.reddit.com.
@@ -47,6 +48,15 @@ class _RedditWebViewState extends State<RedditWebView> {
   /// Whether the dark mode CSS has been injected for the current page.
   bool _darkModeInjected = false;
 
+  /// Whether the current layout should use phone-specific CSS.
+  bool _isPhoneLayout = false;
+
+  /// Whether the phone-specific CSS has been injected for the current page.
+  bool _mobileLayoutInjected = false;
+
+  /// Whether the current page has finished loading.
+  bool _pageLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -86,8 +96,11 @@ class _RedditWebViewState extends State<RedditWebView> {
               setState(() {
                 _loadingProgress = 1.0;
                 _hasError = false;
+                _pageLoaded = true;
               });
             }
+            // Inject phone-only layout fixes after every page load.
+            _injectMobileLayoutCss();
             // Inject dark mode CSS after every page load.
             _injectDarkModeCss();
           },
@@ -189,6 +202,49 @@ class _RedditWebViewState extends State<RedditWebView> {
         debugPrint('[RedditWebView] Dark mode CSS removed');
       }
     }
+  }
+
+  /// Injects phone-only layout fixes into the WebView.
+  ///
+  /// Tablets keep the existing desktop layout unchanged.
+  Future<void> _injectMobileLayoutCss() async {
+    if (!_pageLoaded) {
+      return;
+    }
+
+    if (!_isPhoneLayout) {
+      if (_mobileLayoutInjected) {
+        final js = '''
+(function() {
+  var style = document.getElementById('old-reddit-mobile-layout');
+  if (style) {
+    style.remove();
+  }
+})();
+''';
+        await _controller.runJavaScript(js);
+        _mobileLayoutInjected = false;
+        debugPrint('[RedditWebView] Mobile layout CSS removed');
+      }
+      return;
+    }
+
+    final css = MobileLayoutCss.stylesheet;
+    final escapedCss = css.replaceAll('`', '\\`').replaceAll(r'$', r'\$');
+    final js = '''
+(function() {
+  var style = document.getElementById('old-reddit-mobile-layout');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'old-reddit-mobile-layout';
+    style.textContent = `$escapedCss`;
+    document.head.appendChild(style);
+  }
+})();
+''';
+    await _controller.runJavaScript(js);
+    _mobileLayoutInjected = true;
+    debugPrint('[RedditWebView] Mobile layout CSS injected');
   }
 
   /// Handles the Android system back button.
@@ -322,6 +378,16 @@ class _RedditWebViewState extends State<RedditWebView> {
     // If dark mode changed while the WebView is already loaded, inject/remove CSS.
     if (oldWidget.isDarkMode != widget.isDarkMode) {
       _injectDarkModeCss();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isPhoneLayout = MediaQuery.sizeOf(context).shortestSide < 600;
+    if (_isPhoneLayout != isPhoneLayout) {
+      _isPhoneLayout = isPhoneLayout;
+      _injectMobileLayoutCss();
     }
   }
 }
