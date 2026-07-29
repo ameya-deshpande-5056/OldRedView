@@ -10,7 +10,7 @@ import 'app/app.dart';
 /// (e.g., from Google Search or other apps) to the WebView.
 final ValueNotifier<String?> linkNotifier = ValueNotifier<String?>(null);
 
-/// The entry point for the Old Reddit Viewer application.
+/// The entry point for the OldRedView application.
 ///
 /// The app registers as a handler for Reddit URLs on Android. When launched
 /// via a deep link, the incoming URL is passed to [OldRedditApp] which

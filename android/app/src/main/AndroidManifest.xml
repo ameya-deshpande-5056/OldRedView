@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="Old Reddit Viewer"
+        android:label="OldRedView"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -94,7 +94,7 @@
             <!--
                 Share intent filter: allows users to "Share" Reddit links
                 from Chrome, Google Search, or any other app directly to
-                Old Reddit Viewer.
+                OldRedView.
 
                 Google Search uses Chrome Custom Tabs internally, which open
                 links inside the Google app's own web container rather than
@@ -103,7 +103,7 @@
 
                 1. Tap the link in Google Search → opens in Chrome
                 2. In Chrome, tap the menu (⋮) → "Share"
-                3. Select "Old Reddit Viewer" from the share sheet
+                3. Select "OldRedView" from the share sheet
 
                 The app's Kotlin code (MainActivity.extractUrlFromIntent)
                 will extract the Reddit URL from the shared text.

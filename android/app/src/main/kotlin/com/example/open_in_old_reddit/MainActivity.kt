@@ -8,7 +8,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-/// Main entry point for the Old Reddit Viewer Android activity.
+/// Main entry point for the OldRedView Android activity.
 ///
 /// This activity handles deep link intents from Reddit URLs.
 /// When a Reddit link is opened from another app (including Google Search),

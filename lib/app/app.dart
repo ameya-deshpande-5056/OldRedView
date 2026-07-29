@@ -6,7 +6,7 @@ import '../features/reddit_viewer/reddit_webview.dart';
 import '../main.dart';
 import 'theme.dart';
 
-/// The root widget of the Old Reddit Viewer application.
+/// The root widget of the OldRedView application.
 ///
 /// This widget handles:
 /// - System theme detection (light/dark mode via [ThemeMode.system]).
@@ -18,7 +18,7 @@ class OldRedditApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Old Reddit Viewer',
+      title: 'OldRedView',
       debugShowCheckedModeBanner: false,
 
       // Automatically follow the system light/dark mode.
