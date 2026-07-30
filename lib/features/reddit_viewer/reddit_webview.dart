@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../services/reddit_redirect_service.dart';
@@ -132,6 +133,9 @@ class _RedditWebViewState extends State<RedditWebView> {
           },
           // Handle page load failures gracefully.
           onWebResourceError: (WebResourceError error) {
+            if (error.isForMainFrame != true) {
+              return;
+            }
             debugPrint(
               '[RedditWebView] Error loading: ${error.description} '
               '(code: ${error.errorCode})',
@@ -342,7 +346,7 @@ class _RedditWebViewState extends State<RedditWebView> {
         if (didPop) return;
         final shouldClose = await onBackPressed();
         if (shouldClose && context.mounted) {
-          Navigator.of(context).pop();
+          SystemNavigator.pop();
         }
       },
       child: Scaffold(
